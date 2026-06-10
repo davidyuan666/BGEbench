@@ -1,0 +1,15 @@
+openai>=1.0.0
+httpx>=0.27.0
+pyyaml>=6.0
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+statsmodels>=0.14.0
+click>=8.0
+tqdm>=4.65.0
+# dev tools
+pytest>=7.0
+ruff>=0.4.0
+mypy>=1.8.0
+bandit>=1.7.0
+hypothesis>=6.90.0

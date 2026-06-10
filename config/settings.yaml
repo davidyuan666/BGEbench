@@ -1,0 +1,43 @@
+llm:
+  api_key: "${DEEPSEEK_API_KEY}"
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+  max_tokens: 4096
+  temperature: 0.0
+  max_retries: 3
+
+proxy:
+  http: "http://127.0.0.1:10809"
+  https: "http://127.0.0.1:10809"
+
+benchmarks:
+  humaneval_path: "data/tasks/HumanEval.jsonl"
+  mbpp_path: "data/tasks/mbpp.jsonl"
+
+generation:
+  samples_per_task: 10
+  prompt_variants: ["direct", "concise", "test_aware"]
+
+verification:
+  tools: ["pytest", "ruff", "mypy", "bandit"]
+  timeout_seconds: 60
+
+defect_weights:
+  syntax: 1
+  runtime: 2
+  semantic: 3
+  boundary: 3
+  security: 4
+  api: 2
+  maintainability: 1
+
+eiecc:
+  max_repair_iterations: 3
+
+icre:
+  lambda1: 1.0
+  lambda2: 0.2
+  lambda3: 1.0
+
+output:
+  data_dir: "data"

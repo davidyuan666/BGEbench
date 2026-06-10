@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bgebench"
+version = "0.1.0"
+description = "Bug Growth Elasticity Benchmark for LLM-generated code quality assessment"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Author", email = "email@example.com" }]
+
+dependencies = [
+    "openai>=1.0.0",
+    "httpx>=0.27.0",
+    "pyyaml>=6.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "statsmodels>=0.14.0",
+    "click>=8.0",
+    "tqdm>=4.65.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.4.0",
+    "mypy>=1.8.0",
+    "bandit>=1.7.0",
+    "hypothesis>=6.90.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["bgebench*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
