@@ -10,7 +10,7 @@ from bgebench.common.schemas import Generation, RepairIteration, Task
 from bgebench.common.verification import run_all_tools
 from bgebench.common.defect_classifier import classify_defects, compute_severity_weighted
 from bgebench.common.storage import save_repair_iterations_csv, save_generated_code
-from bgebench.eiecc.normalize_feedback import normalize_feedback, build_repair_prompt
+from bgebench.feedback.normalize_feedback import normalize_feedback, build_repair_prompt
 
 logger = logging.getLogger(__name__)
 

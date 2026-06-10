@@ -26,7 +26,7 @@ def run_baseline(
     generations: list[Generation] = []
     total = len(tasks) * samples_per_task
 
-    with tqdm(total=total, desc="EIECC baseline") as pbar:
+    with tqdm(total=total, desc="Baseline generation") as pbar:
         for task in tasks:
             prompt = build_generation_prompt(task, prompt_variant)
             for sample_id in range(samples_per_task):
@@ -59,9 +59,9 @@ def run_baseline(
                     )
                 pbar.update(1)
 
-    csv_path = output_dir / "results" / "eiecc_baseline.csv"
+    csv_path = output_dir / "results" / "baseline.csv"
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     save_generations_csv(generations, csv_path)
 
-    logger.info("EIECC baseline complete: %d samples", len(generations))
+    logger.info("Baseline generation complete: %d samples", len(generations))
     return generations

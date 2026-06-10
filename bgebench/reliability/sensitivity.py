@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from bgebench.common.schemas import Decision
-from bgebench.icre.run_assessment import assess_reliability
+from bgebench.reliability.run_assessment import assess_reliability
 
 logger = logging.getLogger(__name__)
 

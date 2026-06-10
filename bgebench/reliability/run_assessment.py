@@ -102,7 +102,7 @@ def assess_reliability(
     for r in results:
         counts[r.decision.value] += 1
     logger.info(
-        "ICRE assessment complete: %d results (accept=%d, review=%d, reject=%d)",
+        "Reliability assessment complete: %d results (accept=%d, review=%d, reject=%d)",
         len(results), counts["accept"], counts["review"], counts["reject"],
     )
     return results

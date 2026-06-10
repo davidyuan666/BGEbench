@@ -31,10 +31,10 @@ defect_weights:
   api: 2
   maintainability: 1
 
-eiecc:
+feedback:
   max_repair_iterations: 3
 
-icre:
+reliability:
   lambda1: 1.0
   lambda2: 0.2
   lambda3: 1.0

@@ -132,7 +132,7 @@ def compare_baseline_vs_treatment(
         w.writerows(feedback_effectiveness_rows)
 
     logger.info(
-        "EIECC analysis: pass_rate baseline=%.4f treatment=%.4f improvement=%.4f",
+        "Feedback analysis: pass_rate baseline=%.4f treatment=%.4f improvement=%.4f",
         baseline_pass_rate, treatment_pass_rate, results["pass_rate_improvement"],
     )
     return results

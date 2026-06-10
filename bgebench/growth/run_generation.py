@@ -79,7 +79,7 @@ def generate_samples(
     save_generations_csv(generations, csv_path)
 
     logger.info(
-        "WSSE generation complete: %d samples across %d tasks",
+        "Growth measurement generation complete: %d samples across %d tasks",
         len(generations), len(tasks),
     )
     return generations

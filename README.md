@@ -4,13 +4,13 @@ Bug Growth Elasticity Benchmark — a unified experiment framework for assessing
 LLM-generated code quality through defect-growth modeling, reliability
 assessment, and verification feedback.
 
-## Three experiments
+## Modules
 
-| Module | Paper | Focus |
-|--------|-------|-------|
-| `wsse/` | WSSE 2026 | Measure Bug Growth Elasticity (BGE) from generated code defects |
-| `icre/` | ICRE 2026 | Reliability assessment via severity-weighted defects and RRS |
-| `eiecc/` | EIECC 2026 | Verification feedback loop reducing defects vs direct generation |
+| Module | Focus |
+|--------|-------|
+| `growth/` | Measure Bug Growth Elasticity (BGE) from generated code defects |
+| `reliability/` | Reliability risk scoring via severity-weighted defects and RRS |
+| `feedback/` | Verification feedback loop reducing defects vs direct generation |
 
 ## Installation
 
@@ -20,24 +20,24 @@ pip install -e ".[dev]"
 
 ## Configuration
 
-Copy `config/settings.yaml` and set your API key:
+Set your API key before running:
 
 ```bash
 export DEEPSEEK_API_KEY="sk-..."
 ```
 
-Or edit `config/settings.yaml` directly.
+Or edit `config/settings.yaml` directly. Proxy settings are also in the config file.
 
 ## Usage
 
 ```bash
-# Full pipeline (WSSE → ICRE → EIECC)
+# Full pipeline (growth -> reliability -> feedback)
 python scripts/run_all.py
 
 # Individual experiments
-python scripts/run_wsse.py    # BGE measurement
-python scripts/run_icre.py    # Reliability assessment
-python scripts/run_eiecc.py   # Verification feedback
+python scripts/run_growth.py        # BGE measurement
+python scripts/run_reliability.py   # Reliability assessment
+python scripts/run_feedback.py      # Verification feedback
 ```
 
 ## Data layout
@@ -46,7 +46,7 @@ python scripts/run_eiecc.py   # Verification feedback
 data/
 ├── tasks/       # Cached benchmark copies
 ├── generated/   # Raw LLM outputs
-├── repaired/    # EIECC repair artifacts
+├── repaired/    # Repair artifacts
 ├── logs/        # Tool raw outputs
 └── results/     # Final CSV/JSONL tables
 ```

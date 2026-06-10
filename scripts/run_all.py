@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Run all three experimental pipelines in sequence.
 
-Order: WSSE (BGE measurement) -> ICRE (reliability assessment) -> EIECC (feedback loop)
+Order: growth measurement -> reliability assessment -> feedback loop
 """
 
 import subprocess
@@ -14,9 +14,9 @@ def main():
     workdir = scripts_dir.parent
 
     pipelines = [
-        ("WSSE", str(scripts_dir / "run_wsse.py")),
-        ("ICRE", str(scripts_dir / "run_icre.py")),
-        ("EIECC", str(scripts_dir / "run_eiecc.py")),
+        ("growth", str(scripts_dir / "run_growth.py")),
+        ("reliability", str(scripts_dir / "run_reliability.py")),
+        ("feedback", str(scripts_dir / "run_feedback.py")),
     ]
 
     failed = []

@@ -1,27 +1,26 @@
 #!/usr/bin/env python
-"""WSSE 2026: Bug Growth Elasticity measurement pipeline."""
+"""Verification Feedback Framework pipeline."""
 
 import logging
 import os
 import sys
 from pathlib import Path
 
-import pandas as pd
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from bgebench.common.llm_client import LLMClient
 from bgebench.common.task_loader import load_tasks, filter_tasks
-from bgebench.wsse.run_generation import generate_samples
-from bgebench.wsse.run_verification import verify_generations
-from bgebench.wsse.analyze_growth import analyze_growth
+from bgebench.feedback.run_baseline import run_baseline
+from bgebench.feedback.run_repair_loop import run_feedback_loop
+from bgebench.feedback.analyze_results import compare_baseline_vs_treatment
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-logger = logging.getLogger("wsse")
+logger = logging.getLogger("feedback")
 
 
 def main():
@@ -63,39 +62,41 @@ def main():
         sys.exit(1)
 
     gen_cfg = config.get("generation", {})
+    feedback_cfg = config.get("feedback", {})
     output_dir = Path(config.get("output", {}).get("data_dir", "data"))
 
-    logger.info("Step 1/3: Generating code samples...")
-    generations = generate_samples(
+    logger.info("Step 1/3: Running baseline (direct generation)...")
+    baseline = run_baseline(
         tasks=tasks,
         llm_client=client,
         samples_per_task=gen_cfg.get("samples_per_task", 10),
-        prompt_variants=gen_cfg.get("prompt_variants", ["direct"]),
         output_dir=output_dir,
         model_name=llm_cfg.get("model", "deepseek-chat"),
     )
 
-    logger.info("Step 2/3: Running verification tools...")
+    logger.info("Step 2/3: Running repair loop (treatment condition)...")
     ver_cfg = config.get("verification", {})
-    all_tool_results, all_defects = verify_generations(
-        generations=generations,
+    iterations = run_feedback_loop(
+        baseline_generations=baseline,
         tasks=tasks,
+        llm_client=client,
+        max_repair_iterations=feedback_cfg.get("max_repair_iterations", 3),
         tools=ver_cfg.get("tools"),
         output_dir=output_dir,
     )
 
-    logger.info("Step 3/3: Analyzing BGE growth models...")
-    generations_df = pd.read_csv(output_dir / "results" / "generations.csv")
-    defects_df = pd.read_csv(output_dir / "results" / "defects.csv")
-
-    results = analyze_growth(
-        generations_df=generations_df,
-        defects_df=defects_df,
+    logger.info("Step 3/3: Comparing baseline vs treatment...")
+    results = compare_baseline_vs_treatment(
+        baseline_generations=baseline,
+        repair_iterations=iterations,
         output_dir=output_dir / "results",
     )
 
-    best_bge = results.get("power_law", {}).get("bge", "N/A")
-    logger.info("WSSE pipeline complete. BGE = %s", best_bge)
+    logger.info(
+        "Feedback pipeline complete. Pass rate: baseline=%.4f -> treatment=%.4f",
+        results.get("baseline_pass_rate", 0),
+        results.get("treatment_pass_rate", 0),
+    )
 
 
 if __name__ == "__main__":

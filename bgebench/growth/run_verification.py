@@ -68,7 +68,7 @@ def verify_generations(
     save_defects_csv(all_defects, defect_path)
 
     logger.info(
-        "WSSE verification complete: %d tool results, %d defects",
+        "Growth measurement verification complete: %d tool results, %d defects",
         len(all_tool_results), len(all_defects),
     )
     return all_tool_results, all_defects
