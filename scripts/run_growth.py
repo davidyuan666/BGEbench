@@ -77,7 +77,7 @@ def main():
 
     logger.info("Step 2/3: Running verification tools...")
     ver_cfg = config.get("verification", {})
-    all_tool_results, all_defects = verify_generations(
+    all_tool_results, all_defects, defects_per_sample = verify_generations(
         generations=generations,
         tasks=tasks,
         tools=ver_cfg.get("tools"),
@@ -85,7 +85,7 @@ def main():
     )
 
     logger.info("Step 3/3: Analyzing BGE growth models...")
-    generations_df = pd.read_csv(output_dir / "results" / "generations.csv")
+    generations_df = pd.read_csv(output_dir / "results" / "generations_merged.csv")
     defects_df = pd.read_csv(output_dir / "results" / "defects.csv")
 
     results = analyze_growth(

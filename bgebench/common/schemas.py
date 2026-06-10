@@ -93,8 +93,13 @@ class FeedbackItem:
 @dataclass
 class RepairIteration:
     task_id: str
+    benchmark: str
+    model: str
+    prompt_variant: str
     sample_id: int
+    condition: Condition
     iteration: int
+    generated_tokens: int
     code: str
     loc: int
     pytest_failed: int

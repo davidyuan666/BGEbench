@@ -19,6 +19,9 @@ def compare_baseline_vs_treatment(
 
     iter_df = pd.DataFrame([{
         "task_id": r.task_id,
+        "benchmark": r.benchmark,
+        "model": r.model,
+        "prompt_variant": r.prompt_variant,
         "sample_id": r.sample_id,
         "iteration": r.iteration,
         "loc": r.loc,
@@ -79,6 +82,9 @@ def compare_baseline_vs_treatment(
 
         comparison_rows.append({
             "task_id": row["task_id"],
+            "benchmark": row.get("benchmark", ""),
+            "model": row.get("model", ""),
+            "prompt_variant": row.get("prompt_variant", ""),
             "sample_id": row["sample_id"],
             "baseline_pass": b_pass,
             "treatment_pass": row["hard_pass"],
@@ -98,20 +104,41 @@ def compare_baseline_vs_treatment(
             w.writeheader()
             w.writerows(comparison_rows)
 
+    unresolved_baseline = int((~final_iter[final_iter["iteration"] == 0]["hard_pass"]).sum())
+    unresolved_treatment = int((~final_iter["hard_pass"]).sum())
+    unresolved_reduction = unresolved_baseline - unresolved_treatment
+
+    resolved_defects = max(sw_defect_reduction, 0)
+    total_repair_iters = final_iter["iteration"].sum()
+    repair_per_resolved = round(total_repair_iters / resolved_defects, 2) if resolved_defects > 0 else float("inf")
+
+    worsened_count = int(
+        ((final_iter["severity_weighted_defects"] > 0) & (final_iter["iteration"] > 0)).sum()
+    )
+    overfit_risk_count = int(
+        ((~final_iter["hard_pass"]) & (final_iter["iteration"] > 0)).sum()
+    )
+
     results = {
         "baseline_pass_rate": round(baseline_pass_rate, 4),
         "treatment_pass_rate": round(treatment_pass_rate, 4),
         "pass_rate_improvement": round(treatment_pass_rate - baseline_pass_rate, 4),
         "baseline_sw_defects": round(baseline_sw_defects, 4),
         "treatment_sw_defects": round(treatment_sw_defects, 4),
-        "sw_defect_reduction": round(baseline_sw_defects - treatment_sw_defects, 4),
+        "sw_defect_reduction": round(sw_defect_reduction, 4),
         "baseline_static_warnings": round(baseline_static, 4),
         "treatment_static_warnings": round(treatment_static, 4),
         "static_warning_reduction": round(baseline_static - treatment_static, 4),
+        "unresolved_defects_baseline": unresolved_baseline,
+        "unresolved_defects_treatment": unresolved_treatment,
+        "unresolved_defect_reduction": unresolved_reduction,
+        "repair_iterations_per_resolved_defect": repair_per_resolved,
         "total_prompt_tokens": int(total_prompt_tokens),
         "total_completion_tokens": int(total_completion_tokens),
         "total_wall_time_s": round(total_time, 2),
         "samples_total": total_samples,
+        "feedback_made_worse_count": worsened_count,
+        "overfit_risk_count": overfit_risk_count,
     }
 
     feedback_effectiveness_rows = [{

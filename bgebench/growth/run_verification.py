@@ -7,7 +7,7 @@ from tqdm import tqdm
 from bgebench.common.schemas import Defect, Generation, Task, ToolResult
 from bgebench.common.verification import run_all_tools
 from bgebench.common.defect_classifier import classify_defects, count_by_category, compute_severity_weighted
-from bgebench.common.storage import save_tool_results_jsonl, save_defects_csv
+from bgebench.common.storage import save_tool_results_jsonl, save_defects_csv, save_merged_generations_csv
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +17,11 @@ def verify_generations(
     tasks: list[Task],
     tools: Optional[list[str]] = None,
     output_dir: Path = Path("data"),
-) -> tuple[list[ToolResult], list[Defect]]:
+) -> tuple[list[ToolResult], list[Defect], dict[tuple[str, int], dict[str, int]]]:
     task_map = {t.task_id: t for t in tasks}
     all_tool_results: list[ToolResult] = []
     all_defects: list[Defect] = []
+    defects_per_sample: dict[tuple[str, int], dict[str, int]] = {}
 
     log_dir = output_dir / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -47,6 +48,15 @@ def verify_generations(
                 all_defects.extend(defects)
 
                 cat_counts = count_by_category(defects)
+                tests_passed = sum(tr.passed for tr in tool_results if tr.tool == "pytest")
+                tests_failed = sum(tr.failed for tr in tool_results if tr.tool == "pytest")
+                tests_total = tests_passed + tests_failed
+                defects_per_sample[(gen.task_id, gen.sample_id)] = {
+                    "tests_total": tests_total,
+                    "tests_passed": tests_passed,
+                    "tests_failed": tests_failed,
+                    **cat_counts,
+                }
                 pbar.set_postfix(
                     task=gen.task_id[:20],
                     defects=len(defects),
@@ -67,8 +77,11 @@ def verify_generations(
     defect_path = output_dir / "results" / "defects.csv"
     save_defects_csv(all_defects, defect_path)
 
+    merged_path = output_dir / "results" / "generations_merged.csv"
+    save_merged_generations_csv(generations, defects_per_sample, merged_path)
+
     logger.info(
         "Growth measurement verification complete: %d tool results, %d defects",
         len(all_tool_results), len(all_defects),
     )
-    return all_tool_results, all_defects
+    return all_tool_results, all_defects, defects_per_sample

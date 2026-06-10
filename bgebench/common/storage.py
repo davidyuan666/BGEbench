@@ -118,7 +118,8 @@ def save_feedback_jsonl(items: list[FeedbackItem], path: Path) -> None:
 def save_repair_iterations_csv(iterations: list[RepairIteration], path: Path) -> None:
     ensure_dir(path.parent)
     fieldnames = [
-        "task_id", "sample_id", "iteration",
+        "task_id", "benchmark", "model", "prompt_variant", "sample_id",
+        "condition", "iteration", "generated_tokens",
         "loc", "pytest_failed", "ruff_warnings", "mypy_warnings",
         "bandit_warnings", "severity_weighted_defects", "hard_pass",
         "wall_time_s", "prompt_tokens", "completion_tokens",
@@ -129,8 +130,13 @@ def save_repair_iterations_csv(iterations: list[RepairIteration], path: Path) ->
         for it in iterations:
             writer.writerow({
                 "task_id": it.task_id,
+                "benchmark": it.benchmark,
+                "model": it.model,
+                "prompt_variant": it.prompt_variant,
                 "sample_id": it.sample_id,
+                "condition": it.condition.value,
                 "iteration": it.iteration,
+                "generated_tokens": it.generated_tokens,
                 "loc": it.loc,
                 "pytest_failed": it.pytest_failed,
                 "ruff_warnings": it.ruff_warnings,
@@ -189,3 +195,53 @@ def save_generated_code(code: str, task_id: str, sample_id: int, base_dir: Path)
 
 def load_generated_code(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def save_merged_generations_csv(
+    generations: list[Generation],
+    defects_per_sample: dict[tuple[str, int], dict[str, int]],
+    path: Path,
+) -> None:
+    ensure_dir(path.parent)
+    fieldnames = [
+        "task_id", "benchmark", "model", "prompt_variant", "sample_id",
+        "generated_loc", "generated_tokens", "accepted_loc",
+        "tests_total", "tests_passed", "tests_failed",
+        "syntax_errors", "runtime_errors", "semantic_defects", "boundary_defects",
+        "security_warnings", "api_errors", "maintainability_warnings",
+        "confirmed_defects", "defect_density_kloc", "generation_time_s",
+    ]
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for g in generations:
+            key = (g.task_id, g.sample_id)
+            defects = defects_per_sample.get(key, {})
+            total_defects = sum(defects.values())
+            row = {
+                "task_id": g.task_id,
+                "benchmark": g.benchmark,
+                "model": g.model,
+                "prompt_variant": g.prompt_variant,
+                "sample_id": g.sample_id,
+                "generated_loc": g.generated_loc,
+                "generated_tokens": g.generated_tokens,
+                "accepted_loc": g.accepted_loc,
+                "tests_total": defects.get("tests_total", 0),
+                "tests_passed": defects.get("tests_passed", 0),
+                "tests_failed": defects.get("tests_failed", 0),
+                "syntax_errors": defects.get("syntax", 0),
+                "runtime_errors": defects.get("runtime", 0),
+                "semantic_defects": defects.get("semantic", 0),
+                "boundary_defects": defects.get("boundary", 0),
+                "security_warnings": defects.get("security", 0),
+                "api_errors": defects.get("api", 0),
+                "maintainability_warnings": defects.get("maintainability", 0),
+                "confirmed_defects": total_defects,
+                "defect_density_kloc": round(
+                    (total_defects / (g.generated_loc / 1000.0)) if g.generated_loc > 0 else 0.0, 2
+                ),
+                "generation_time_s": g.generation_time_s,
+            }
+            writer.writerow(row)
+    logger.info("Saved merged generations + defects to %s", path)

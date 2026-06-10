@@ -104,3 +104,43 @@ def test_ruff_no_issues():
     )
     defects = classify_defects([tr])
     assert len(defects) == 0
+
+
+def test_classify_pytest_index_error_boundary():
+    tr = ToolResult(
+        task_id="test", sample_id=0, tool="pytest",
+        exit_code=1,
+        summary="IndexError: list index out of range\n",
+    )
+    defects = classify_defects([tr])
+    assert any(d.category == DefectCategory.BOUNDARY for d in defects)
+
+
+def test_classify_pytest_key_error_boundary():
+    tr = ToolResult(
+        task_id="test", sample_id=0, tool="pytest",
+        exit_code=1,
+        summary="KeyError: 'missing_key'\n",
+    )
+    defects = classify_defects([tr])
+    assert any(d.category == DefectCategory.BOUNDARY for d in defects)
+
+
+def test_classify_pytest_value_error_boundary():
+    tr = ToolResult(
+        task_id="test", sample_id=0, tool="pytest",
+        exit_code=1,
+        summary="ValueError: math domain error\n",
+    )
+    defects = classify_defects([tr])
+    assert any(d.category == DefectCategory.BOUNDARY for d in defects)
+
+
+def test_classify_pytest_zero_division_boundary():
+    tr = ToolResult(
+        task_id="test", sample_id=0, tool="pytest",
+        exit_code=1,
+        summary="ZeroDivisionError: division by zero\n",
+    )
+    defects = classify_defects([tr])
+    assert any(d.category == DefectCategory.BOUNDARY for d in defects)

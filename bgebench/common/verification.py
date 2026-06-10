@@ -226,7 +226,7 @@ def run_all_tools(
     timeout: int = TIMEOUT_SECONDS,
 ) -> list[ToolResult]:
     if tools is None:
-        tools = ["pytest", "ruff", "mypy", "bandit"]
+        tools = ["pytest", "ruff", "mypy", "bandit", "hypothesis"]
     results: list[ToolResult] = []
     for tool in tools:
         if tool == "pytest" and task.test_code:
@@ -239,6 +239,10 @@ def run_all_tools(
             results.append(run_mypy(code, task.task_id, sample_id, tmp_dir, timeout))
         elif tool == "bandit":
             results.append(run_bandit(code, task.task_id, sample_id, tmp_dir, timeout))
+        elif tool == "hypothesis" and task.test_code:
+            results.append(
+                run_hypothesis(code, task.test_code, task.task_id, sample_id, tmp_dir, timeout)
+            )
     return results
 
 
@@ -257,6 +261,68 @@ def _parse_pytest_summary(output: str) -> tuple[int, int]:
             if f:
                 failed = int(f.group(1))
     return passed, failed
+
+
+def run_hypothesis(
+    code: str,
+    test_code: str,
+    task_id: str,
+    sample_id: int,
+    tmp_dir: Optional[Path] = None,
+    timeout: int = TIMEOUT_SECONDS,
+) -> ToolResult:
+    try:
+        import hypothesis
+    except ImportError:
+        return ToolResult(
+            task_id=task_id,
+            sample_id=sample_id,
+            tool="hypothesis",
+            exit_code=-1,
+            summary="hypothesis not installed",
+        )
+
+    with _temp_dir(tmp_dir) as workdir:
+        test_file = workdir / f"htest_{_safe_name(task_id)}_{sample_id}.py"
+        wrapper = (
+            f"{code}\n\n"
+            f"from hypothesis import given, strategies as st, settings\n"
+            f"from hypothesis import HealthCheck\n\n"
+            f"{test_code}\n"
+        )
+        test_file.write_text(wrapper, encoding="utf-8")
+
+        try:
+            proc = subprocess.run(
+                [
+                    "pytest", str(test_file), "-v", "--tb=short",
+                    "--hypothesis-show-statistics",
+                    "-p", "no:cacheprovider",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=timeout * 2,
+                cwd=str(workdir),
+            )
+            passed, failed = _parse_pytest_summary(proc.stdout)
+            return ToolResult(
+                task_id=task_id,
+                sample_id=sample_id,
+                tool="hypothesis",
+                exit_code=proc.returncode,
+                summary=_truncate(proc.stdout, 2000),
+                raw_output_path=str(test_file),
+                passed=passed,
+                failed=failed,
+            )
+        except subprocess.TimeoutExpired:
+            return ToolResult(
+                task_id=task_id,
+                sample_id=sample_id,
+                tool="hypothesis",
+                exit_code=-1,
+                summary="Hypothesis testing timed out",
+            )
 
 
 def _safe_name(name: str) -> str:

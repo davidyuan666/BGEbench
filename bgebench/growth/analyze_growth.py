@@ -247,3 +247,31 @@ def _save_results_table(results: dict, output_dir: Path) -> None:
             w.writeheader()
             w.writerows(main_rows)
     logger.info("BGE fit results saved to %s", main_table_path)
+
+    taxonomy = results.get("defect_taxonomy", {})
+    tax_rows = []
+    categories = taxonomy.get("categories", {})
+    total = taxonomy.get("total_defects", 0)
+    for cat, count in categories.items():
+        tax_rows.append({
+            "Category": cat,
+            "Count": count,
+            "Percentage": round(count / total * 100, 1) if total else 0,
+            "Defects_per_KLOC": "N/A",
+        })
+    tax_path = output_dir / "defect_taxonomy.csv"
+    with open(tax_path, "w", newline="", encoding="utf-8") as f:
+        if tax_rows:
+            w = csv.DictWriter(f, fieldnames=tax_rows[0].keys())
+            w.writeheader()
+            w.writerows(tax_rows)
+    logger.info("Defect taxonomy saved to %s", tax_path)
+
+    sensitivity = results.get("prompt_sensitivity", [])
+    if sensitivity:
+        sens_path = output_dir / "prompt_sensitivity.csv"
+        with open(sens_path, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=sensitivity[0].keys())
+            w.writeheader()
+            w.writerows(sensitivity)
+        logger.info("Prompt sensitivity saved to %s", sens_path)

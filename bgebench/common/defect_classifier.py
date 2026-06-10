@@ -64,6 +64,12 @@ def _classify_pytest(tr: ToolResult) -> list[Defect]:
     import_error_pattern = re.compile(r"ImportError:\s*|ModuleNotFoundError:\s*")
     syntax_error_pattern = re.compile(r"SyntaxError:\s*(.*)")
     type_error_pattern = re.compile(r"TypeError:\s*(.*)")
+    index_error_pattern = re.compile(r"IndexError:\s*(.*)")
+    key_error_pattern = re.compile(r"KeyError:\s*(.*)")
+    value_error_pattern = re.compile(r"ValueError:\s*(.*)")
+    zero_division_pattern = re.compile(r"ZeroDivisionError:\s*(.*)")
+    overflow_pattern = re.compile(r"OverflowError:\s*(.*)")
+    recursion_pattern = re.compile(r"RecursionError:\s*(.*)")
 
     for match in syntax_error_pattern.finditer(output):
         defects.append(
@@ -121,6 +127,79 @@ def _classify_pytest(tr: ToolResult) -> list[Defect]:
                 description=f"TypeError: {match.group(1)[:200]}",
                 location=_find_line(output, match.start()),
                 severity=DEFAULT_SEVERITY[DefectCategory.RUNTIME],
+                tool_source="pytest",
+            )
+        )
+
+    for match in index_error_pattern.finditer(output):
+        defects.append(
+            Defect(
+                task_id=tr.task_id,
+                sample_id=tr.sample_id,
+                category=DefectCategory.BOUNDARY,
+                description=f"IndexError (out-of-bounds): {match.group(1)[:200]}",
+                location=_find_line(output, match.start()),
+                severity=DEFAULT_SEVERITY[DefectCategory.BOUNDARY],
+                tool_source="pytest",
+            )
+        )
+    for match in key_error_pattern.finditer(output):
+        defects.append(
+            Defect(
+                task_id=tr.task_id,
+                sample_id=tr.sample_id,
+                category=DefectCategory.BOUNDARY,
+                description=f"KeyError (missing key): {match.group(1)[:200]}",
+                location=_find_line(output, match.start()),
+                severity=DEFAULT_SEVERITY[DefectCategory.BOUNDARY],
+                tool_source="pytest",
+            )
+        )
+    for match in value_error_pattern.finditer(output):
+        defects.append(
+            Defect(
+                task_id=tr.task_id,
+                sample_id=tr.sample_id,
+                category=DefectCategory.BOUNDARY,
+                description=f"ValueError (invalid input): {match.group(1)[:200]}",
+                location=_find_line(output, match.start()),
+                severity=DEFAULT_SEVERITY[DefectCategory.BOUNDARY],
+                tool_source="pytest",
+            )
+        )
+    for match in zero_division_pattern.finditer(output):
+        defects.append(
+            Defect(
+                task_id=tr.task_id,
+                sample_id=tr.sample_id,
+                category=DefectCategory.BOUNDARY,
+                description=f"ZeroDivisionError (edge case): {match.group(1)[:200]}",
+                location=_find_line(output, match.start()),
+                severity=DEFAULT_SEVERITY[DefectCategory.BOUNDARY],
+                tool_source="pytest",
+            )
+        )
+    for match in overflow_pattern.finditer(output):
+        defects.append(
+            Defect(
+                task_id=tr.task_id,
+                sample_id=tr.sample_id,
+                category=DefectCategory.BOUNDARY,
+                description=f"OverflowError (numeric boundary): {match.group(1)[:200]}",
+                location=_find_line(output, match.start()),
+                severity=DEFAULT_SEVERITY[DefectCategory.BOUNDARY],
+                tool_source="pytest",
+            )
+        )
+    for match in recursion_pattern.finditer(output):
+        defects.append(
+            Defect(
+                task_id=tr.task_id,
+                sample_id=tr.sample_id,
+                category=DefectCategory.BOUNDARY,
+                description=f"RecursionError (stack boundary): {match.group(1)[:200]}",
+                location=_find_line(output, match.start()),
+                severity=DEFAULT_SEVERITY[DefectCategory.BOUNDARY],
                 tool_source="pytest",
             )
         )

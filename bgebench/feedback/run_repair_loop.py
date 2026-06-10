@@ -6,10 +6,13 @@ from typing import Optional
 from tqdm import tqdm
 
 from bgebench.common.llm_client import LLMClient
-from bgebench.common.schemas import Generation, RepairIteration, Task
+from bgebench.common.schemas import Condition, Generation, RepairIteration, Task
 from bgebench.common.verification import run_all_tools
 from bgebench.common.defect_classifier import classify_defects, compute_severity_weighted
-from bgebench.common.storage import save_repair_iterations_csv, save_generated_code
+from bgebench.common.storage import (
+    save_repair_iterations_csv, save_generated_code, save_tool_results_jsonl,
+    save_feedback_jsonl,
+)
 from bgebench.feedback.normalize_feedback import normalize_feedback, build_repair_prompt
 
 logger = logging.getLogger(__name__)
@@ -64,8 +67,13 @@ def run_feedback_loop(
 
                 iter_record = RepairIteration(
                     task_id=gen.task_id,
+                    benchmark=gen.benchmark,
+                    model=gen.model,
+                    prompt_variant=gen.prompt_variant,
                     sample_id=gen.sample_id,
+                    condition=Condition.TREATMENT if iteration > 0 else Condition.BASELINE,
                     iteration=iteration,
+                    generated_tokens=gen.generated_tokens,
                     code=current_code,
                     loc=loc,
                     pytest_failed=pytest_failed,
@@ -80,6 +88,8 @@ def run_feedback_loop(
                 )
                 all_iterations.append(iter_record)
 
+                _save_tool_results(log_dir, tool_results, gen.task_id, gen.sample_id, iteration)
+
                 save_generated_code(
                     current_code, gen.task_id,
                     gen.sample_id * 100 + iteration, repaired_dir,
@@ -91,6 +101,9 @@ def run_feedback_loop(
                 if defects:
                     feedback_items = normalize_feedback(tool_results, defects)
                     repair_prompt = build_repair_prompt(current_code, feedback_items)
+
+                    _save_feedback(feedback_items, gen.task_id, gen.sample_id, iteration, output_dir)
+
                     try:
                         repair_result = llm_client.generate(
                             prompt=repair_prompt,
@@ -118,3 +131,17 @@ def run_feedback_loop(
 
     logger.info("Repair loop complete: %d iteration records", len(all_iterations))
     return all_iterations
+
+
+def _save_tool_results(log_dir, tool_results, task_id, sample_id, iteration):
+    safe_id = task_id.replace("/", "_").replace("\\", "_").replace(" ", "_")
+    tool_path = log_dir / f"tools_{safe_id}_{sample_id}_{iteration}.jsonl"
+    save_tool_results_jsonl(tool_results, tool_path)
+
+
+def _save_feedback(feedback_items, task_id, sample_id, iteration, output_dir):
+    feedback_dir = output_dir / "results"
+    feedback_dir.mkdir(parents=True, exist_ok=True)
+    safe_id = task_id.replace("/", "_").replace("\\", "_").replace(" ", "_")
+    feedback_path = feedback_dir / f"feedback_{safe_id}_{sample_id}_{iteration}.jsonl"
+    save_feedback_jsonl(feedback_items, feedback_path)

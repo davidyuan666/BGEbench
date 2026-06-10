@@ -19,7 +19,7 @@ generation:
   prompt_variants: ["direct", "concise", "test_aware"]
 
 verification:
-  tools: ["pytest", "ruff", "mypy", "bandit"]
+  tools: ["pytest", "ruff", "mypy", "bandit", "hypothesis"]
   timeout_seconds: 60
 
 defect_weights:
