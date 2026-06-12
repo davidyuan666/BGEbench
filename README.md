@@ -2,7 +2,8 @@
 
 Bug Growth Elasticity Benchmark — a unified experiment framework for assessing
 LLM-generated code quality through defect-growth modeling, reliability
-assessment, and verification feedback.
+assessment, and verification feedback. Supports three EI 2026 papers:
+WSSE, EIECC, and ICRE.
 
 ## Modules
 
