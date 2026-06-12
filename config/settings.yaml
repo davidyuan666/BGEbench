@@ -7,8 +7,8 @@ llm:
   max_retries: 3
 
 proxy:
-  http: "http://127.0.0.1:10809"
-  https: "http://127.0.0.1:10809"
+  http: "http://127.0.0.1:10808"
+  https: "http://127.0.0.1:10808"
 
 benchmarks:
   humaneval_path: "data/tasks/HumanEval.jsonl"
