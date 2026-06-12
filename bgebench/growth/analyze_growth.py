@@ -102,6 +102,9 @@ def analyze_growth(
 
     results["prompt_sensitivity"] = _prompt_sensitivity(generations_df, defects_df)
 
+    sw_results = _severity_weighted_bge(merged, defects_df, output_dir)
+    results["severity_weighted_bge"] = sw_results
+
     _save_results_table(results, output_dir)
 
     logger.info("BGE analysis complete. Best model beta=%.4f", power_slope)
@@ -275,3 +278,54 @@ def _save_results_table(results: dict, output_dir: Path) -> None:
             w.writeheader()
             w.writerows(sensitivity)
         logger.info("Prompt sensitivity saved to %s", sens_path)
+
+
+def _severity_weighted_bge(
+    merged: pd.DataFrame,
+    defects_df: pd.DataFrame,
+    output_dir: Path,
+) -> dict[str, Any]:
+    try:
+        from bgebench.common.defect_classifier import DEFECT_WEIGHTS
+        from bgebench.common.schemas import DefectCategory
+
+        category_weight = {k.value: v for k, v in DEFECT_WEIGHTS.items()}
+        defects_df["weight"] = defects_df["category"].map(category_weight).fillna(1)
+        weight_sum = (
+            defects_df.groupby(["task_id", "sample_id"])["weight"]
+            .sum()
+            .reset_index(name="B_w")
+        )
+        merged_w = merged.merge(weight_sum, on=["task_id", "sample_id"], how="left")
+        merged_w["B_w"] = merged_w["B_w"].fillna(0)
+
+        V = merged_w["generated_loc"].values
+        B_w = merged_w["B_w"].values
+        log_V = np.log(V + 1)
+        log_Bw = np.log(B_w + 1)
+
+        slope, intercept, r_val, p_val, se = stats.linregress(log_V, log_Bw)
+
+        result = {
+            "model": "log(B_w+1) = alpha + beta_w * log(V+1)",
+            "alpha": round(float(intercept), 6),
+            "beta_weighted": round(float(slope), 6),
+            "bge_weighted": round(float(slope), 6),
+            "bge_weighted_ci": _confidence_interval(slope, se, len(V)),
+            "r_squared": round(float(r_val ** 2), 6),
+            "p_value": round(float(p_val), 6),
+            "interpretation": _interpret_elasticity(slope),
+            "mean_B_w": round(float(np.mean(B_w)), 4),
+            "mean_B_raw": round(float(merged["defect_count"].mean()), 4),
+        }
+
+        csv_path = output_dir / "severity_weighted_bge.csv"
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=result.keys())
+            w.writeheader()
+            w.writerow(result)
+        logger.info("Severity-weighted BGE saved to %s", csv_path)
+        return result
+    except Exception as e:
+        logger.warning("Severity-weighted BGE failed: %s", e)
+        return {"error": str(e)}

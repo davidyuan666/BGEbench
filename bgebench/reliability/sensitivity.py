@@ -1,6 +1,7 @@
 import csv
 import logging
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -15,6 +16,7 @@ def run_sensitivity(
     generations_df: pd.DataFrame,
     defects_df: pd.DataFrame,
     output_dir: Path = Path("data/results"),
+    repair_iterations_path: Optional[Path] = None,
 ) -> list[dict]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -48,6 +50,7 @@ def run_sensitivity(
                     rrs_reject_threshold=tc["reject"],
                     output_dir=output_dir,
                     config_version=config_key,
+                    repair_iterations_path=repair_iterations_path,
                 )
                 counts = {"accept": 0, "review": 0, "reject": 0}
                 rrs_values = []

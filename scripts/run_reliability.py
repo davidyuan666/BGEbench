@@ -54,6 +54,7 @@ def main():
     lambda3 = reliability_cfg.get("lambda3", 1.0)
 
     logger.info("Step 1/2: Computing RRS for all artifacts...")
+    feedback_iterations_path = results_dir / "feedback_iterations.csv"
     results = assess_reliability(
         generations_df=generations_df,
         defects_df=defects_df,
@@ -61,6 +62,7 @@ def main():
         lambda2=lambda2,
         lambda3=lambda3,
         output_dir=results_dir,
+        repair_iterations_path=feedback_iterations_path if feedback_iterations_path.exists() else None,
     )
 
     logger.info("Step 2/2: Running sensitivity analysis...")
@@ -68,6 +70,7 @@ def main():
         generations_df=generations_df,
         defects_df=defects_df,
         output_dir=results_dir,
+        repair_iterations_path=feedback_iterations_path if feedback_iterations_path.exists() else None,
     )
 
     counts = {"accept": 0, "review": 0, "reject": 0}

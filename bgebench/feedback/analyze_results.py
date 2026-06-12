@@ -162,4 +162,116 @@ def compare_baseline_vs_treatment(
         "Feedback analysis: pass_rate baseline=%.4f treatment=%.4f improvement=%.4f",
         baseline_pass_rate, treatment_pass_rate, results["pass_rate_improvement"],
     )
+
+    interaction = _fit_interaction_model(
+        _build_generations_df(baseline_generations), iter_df, output_dir,
+    )
+    results["interaction_model"] = interaction
+
     return results
+
+
+def _build_generations_df(generations: list[Generation]) -> pd.DataFrame:
+    return pd.DataFrame([{
+        "task_id": g.task_id,
+        "sample_id": g.sample_id,
+        "generated_loc": g.generated_loc,
+    } for g in generations])
+
+
+def _fit_interaction_model(
+    generations_df: pd.DataFrame,
+    iter_df: pd.DataFrame,
+    output_dir: Path,
+) -> dict[str, Any]:
+    try:
+        import numpy as np
+        from scipy import stats
+
+        gen_df = generations_df[["task_id", "sample_id", "generated_loc"]].copy()
+        gen_df["task_id"] = gen_df["task_id"].astype(str)
+
+        final = iter_df.loc[
+            iter_df.groupby(["task_id", "sample_id"])["iteration"].idxmax()
+        ].copy()
+        final["task_id"] = final["task_id"].astype(str)
+
+        has_baseline = 0 in final["iteration"].values
+        if not has_baseline:
+            return {"warning": "No baseline iteration (0) found; cannot fit interaction model"}
+
+        df = final.merge(gen_df, on=["task_id", "sample_id"], how="inner")
+        if len(df) < 4:
+            return {"warning": "Too few samples for interaction model"}
+
+        df["log_V"] = np.log(df["generated_loc"].values + 1)
+        df["log_B"] = np.log(df["severity_weighted_defects"].values + 1)
+        df["W"] = (df["iteration"] > 0).astype(int)
+        df["log_V_W"] = df["log_V"] * df["W"]
+
+        X = np.column_stack([
+            np.ones(len(df)),
+            df["log_V"].values,
+            df["W"].values,
+            df["log_V_W"].values,
+        ])
+        y = df["log_B"].values
+
+        try:
+            coeffs, residuals, rank, singular = np.linalg.lstsq(X, y, rcond=None)
+            y_pred = X @ coeffs
+            ss_res = np.sum((y - y_pred) ** 2)
+            ss_tot = np.sum((y - np.mean(y)) ** 2)
+            r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+        except np.linalg.LinAlgError:
+            return {"warning": "Singular matrix in interaction model"}
+
+        n = len(df)
+        p = 4
+        if n > p and ss_res > 0:
+            se = np.sqrt(ss_res / (n - p))
+            XtX_inv = np.linalg.inv(X.T @ X)
+            ses = se * np.sqrt(np.diag(XtX_inv))
+        else:
+            ses = np.full(4, np.nan)
+
+        interaction_result = {
+            "model": "log(B+1) = gamma + beta1*log(V+1) + beta2*W + beta3*log(V+1)*W",
+            "gamma": round(float(coeffs[0]), 6),
+            "beta1_logV": round(float(coeffs[1]), 6),
+            "beta2_W": round(float(coeffs[2]), 6),
+            "beta3_interaction": round(float(coeffs[3]), 6),
+            "se_gamma": round(float(ses[0]), 6) if not np.isnan(ses[0]) else None,
+            "se_beta1": round(float(ses[1]), 6) if not np.isnan(ses[1]) else None,
+            "se_beta2": round(float(ses[2]), 6) if not np.isnan(ses[2]) else None,
+            "se_beta3": round(float(ses[3]), 6) if not np.isnan(ses[3]) else None,
+            "r_squared": round(float(r_squared), 6),
+            "n_samples": n,
+            "interpretation": _interpret_interaction(float(coeffs[3])),
+        }
+
+        import json
+        ipath = output_dir / "interaction_model.json"
+        ipath.parent.mkdir(parents=True, exist_ok=True)
+        with open(ipath, "w", encoding="utf-8") as f:
+            json.dump(interaction_result, f, indent=2)
+
+        logger.info(
+            "Interaction model: beta3=%.4f (neg => feedback reduces defect growth)",
+            float(coeffs[3]),
+        )
+        return interaction_result
+    except Exception as e:
+        logger.warning("Interaction model failed: %s", e)
+        return {"error": str(e)}
+
+
+def _interpret_interaction(beta3: float) -> str:
+    if beta3 < -0.1:
+        return "Feedback significantly reduces defect growth rate (negative interaction)."
+    elif beta3 < -0.01:
+        return "Feedback weakly reduces defect growth rate."
+    elif abs(beta3) <= 0.01:
+        return "Feedback has negligible effect on defect growth rate."
+    else:
+        return "Feedback may increase defect growth rate (positive interaction — investigate)."

@@ -27,6 +27,7 @@ def assess_reliability(
     rrs_reject_threshold: float = 5.0,
     output_dir: Path = Path("data/results"),
     config_version: str = "default",
+    repair_iterations_path: Optional[Path] = None,
 ) -> list[ReliabilityResult]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -43,12 +44,30 @@ def assess_reliability(
     merged["defects_raw"] = merged["defects_raw"].fillna(0).astype(int)
     merged["defects_weighted"] = merged["defects_weighted"].fillna(0.0)
 
+    repair_map: dict[tuple[str, int], dict] = {}
+    if repair_iterations_path and repair_iterations_path.exists():
+        repair_df = pd.read_csv(repair_iterations_path)
+        repair_df["task_id"] = repair_df["task_id"].astype(str)
+        final_iter = repair_df.loc[
+            repair_df.groupby(["task_id", "sample_id"])["iteration"].idxmax()
+        ]
+        for _, r in final_iter.iterrows():
+            key = (str(r["task_id"]), int(r["sample_id"]))
+            repair_map[key] = {
+                "repair_iterations": int(r.get("iteration", 0)),
+                "final_failure": not bool(r.get("hard_pass", False)),
+            }
+        logger.info("Loaded repair data for %d artifacts", len(repair_map))
+
     results: list[ReliabilityResult] = []
     for _, row in merged.iterrows():
+        key = (str(row["task_id"]), int(row["sample_id"]))
         V = max(row.get("generated_loc", 0), 0)
         B_w = float(row["defects_weighted"])
-        R_val = 0
-        F_val = 1.0 if B_w > 0 else 0.0
+
+        repair_info = repair_map.get(key, {})
+        R_val = repair_info.get("repair_iterations", 0)
+        F_val = 1.0 if repair_info.get("final_failure", B_w > 0) else 0.0
 
         pass_rate = 0.0
         if V > 0:
