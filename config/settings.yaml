@@ -7,8 +7,8 @@ llm:
   max_retries: 3
 
 proxy:
-  http: "http://127.0.0.1:10808"
-  https: "http://127.0.0.1:10808"
+  http: "http://127.0.0.1:10809"
+  https: "http://127.0.0.1:10809"
 
 benchmarks:
   humaneval_path: "data/tasks/HumanEval.jsonl"
@@ -17,6 +17,7 @@ benchmarks:
 generation:
   samples_per_task: 10
   prompt_variants: ["direct", "concise", "test_aware"]
+  max_tasks: 3
 
 verification:
   tools: ["pytest", "ruff", "mypy", "bandit", "hypothesis"]

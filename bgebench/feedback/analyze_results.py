@@ -108,6 +108,7 @@ def compare_baseline_vs_treatment(
     unresolved_treatment = int((~final_iter["hard_pass"]).sum())
     unresolved_reduction = unresolved_baseline - unresolved_treatment
 
+    sw_defect_reduction = baseline_sw_defects - treatment_sw_defects
     resolved_defects = max(sw_defect_reduction, 0)
     total_repair_iters = final_iter["iteration"].sum()
     repair_per_resolved = round(total_repair_iters / resolved_defects, 2) if resolved_defects > 0 else float("inf")

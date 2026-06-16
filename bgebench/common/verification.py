@@ -1,4 +1,6 @@
+import os
 import subprocess
+import sys
 import tempfile
 import json
 import logging
@@ -11,6 +13,27 @@ logger = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 60
 
+_TOOL_CACHE: dict[str, str] = {}
+
+_SCRIPT_DIRS = [
+    os.path.join(os.path.dirname(sys.executable), "Scripts"),
+    os.path.join(sys.prefix, "Scripts"),
+    os.path.join(sys.base_prefix, "Scripts"),
+    os.path.expanduser(r"~\AppData\Roaming\Python\Python314\Scripts"),
+]
+
+
+def _resolve_tool(name: str) -> str:
+    if name in _TOOL_CACHE:
+        return _TOOL_CACHE[name]
+    for d in _SCRIPT_DIRS:
+        exe = os.path.join(d, f"{name}.exe")
+        if os.path.isfile(exe):
+            _TOOL_CACHE[name] = exe
+            return exe
+    _TOOL_CACHE[name] = name
+    return name
+
 
 def run_pytest(
     code: str,
@@ -19,14 +42,18 @@ def run_pytest(
     sample_id: int,
     tmp_dir: Optional[Path] = None,
     timeout: int = TIMEOUT_SECONDS,
+    entry_point: Optional[str] = None,
 ) -> ToolResult:
     with _temp_dir(tmp_dir) as workdir:
         test_file = workdir / f"test_{_safe_name(task_id)}_{sample_id}.py"
-        test_file.write_text(f"{code}\n\n{test_code}\n", encoding="utf-8")
+        wrapper = ""
+        if entry_point and "def check(" in test_code:
+            wrapper = f"\n\ndef test_{entry_point}():\n    check({entry_point})\n"
+        test_file.write_text(f"{code}\n\n{test_code}\n{wrapper}", encoding="utf-8")
 
         try:
             proc = subprocess.run(
-                ["pytest", str(test_file), "-v", "--tb=short", "-p", "no:cacheprovider"],
+                [_resolve_tool("pytest"), str(test_file), "-v", "--tb=short", "-p", "no:cacheprovider"],
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -75,7 +102,7 @@ def run_ruff(
 
         try:
             proc = subprocess.run(
-                ["ruff", "check", str(src_file), "--output-format=text"],
+                [_resolve_tool("ruff"), "check", str(src_file), "--output-format=text"],
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -122,7 +149,7 @@ def run_mypy(
 
         try:
             proc = subprocess.run(
-                ["mypy", str(src_file), "--ignore-missing-imports", "--no-error-summary"],
+                [_resolve_tool("mypy"), str(src_file), "--ignore-missing-imports", "--no-error-summary"],
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -171,7 +198,7 @@ def run_bandit(
 
         try:
             proc = subprocess.run(
-                ["bandit", "-r", str(src_file), "-f", "json", "-ll"],
+                [_resolve_tool("bandit"), "-r", str(src_file), "-f", "json", "-ll"],
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -231,7 +258,7 @@ def run_all_tools(
     for tool in tools:
         if tool == "pytest" and task.test_code:
             results.append(
-                run_pytest(code, task.test_code, task.task_id, sample_id, tmp_dir, timeout)
+                run_pytest(code, task.test_code, task.task_id, sample_id, tmp_dir, timeout, entry_point=task.entry_point)
             )
         elif tool == "ruff":
             results.append(run_ruff(code, task.task_id, sample_id, tmp_dir, timeout))
@@ -241,7 +268,7 @@ def run_all_tools(
             results.append(run_bandit(code, task.task_id, sample_id, tmp_dir, timeout))
         elif tool == "hypothesis" and task.test_code:
             results.append(
-                run_hypothesis(code, task.test_code, task.task_id, sample_id, tmp_dir, timeout)
+                run_hypothesis(code, task.test_code, task.task_id, sample_id, tmp_dir, timeout, entry_point=task.entry_point)
             )
     return results
 
@@ -270,6 +297,7 @@ def run_hypothesis(
     sample_id: int,
     tmp_dir: Optional[Path] = None,
     timeout: int = TIMEOUT_SECONDS,
+    entry_point: Optional[str] = None,
 ) -> ToolResult:
     try:
         import hypothesis
@@ -284,18 +312,22 @@ def run_hypothesis(
 
     with _temp_dir(tmp_dir) as workdir:
         test_file = workdir / f"htest_{_safe_name(task_id)}_{sample_id}.py"
+        check_wrapper = ""
+        if entry_point and "def check(" in test_code:
+            check_wrapper = f"\n\ndef test_{entry_point}():\n    check({entry_point})\n"
         wrapper = (
             f"{code}\n\n"
             f"from hypothesis import given, strategies as st, settings\n"
             f"from hypothesis import HealthCheck\n\n"
             f"{test_code}\n"
+            f"{check_wrapper}\n"
         )
         test_file.write_text(wrapper, encoding="utf-8")
 
         try:
             proc = subprocess.run(
                 [
-                    "pytest", str(test_file), "-v", "--tb=short",
+                    _resolve_tool("pytest"), str(test_file), "-v", "--tb=short",
                     "--hypothesis-show-statistics",
                     "-p", "no:cacheprovider",
                 ],

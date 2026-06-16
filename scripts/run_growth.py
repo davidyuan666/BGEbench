@@ -54,7 +54,7 @@ def main():
     bm = config.get("benchmarks", {})
     tasks = load_tasks(
         humaneval_path=bm.get("humaneval_path"),
-        mbpp_path=bm.get("mbpp_path"),
+        mbpp_path=None,
     )
     tasks = filter_tasks(tasks, max_tasks=config.get("generation", {}).get("max_tasks"))
 
