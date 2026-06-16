@@ -102,13 +102,13 @@ def run_ruff(
 
         try:
             proc = subprocess.run(
-                [_resolve_tool("ruff"), "check", str(src_file), "--output-format=text"],
+                [_resolve_tool("ruff"), "check", str(src_file), "--output-format=concise"],
                 capture_output=True,
                 text=True,
                 timeout=timeout,
                 cwd=str(workdir),
             )
-            warnings = len([l for l in proc.stdout.splitlines() if l.strip()])
+            warnings = len([l for l in proc.stdout.splitlines() if l.strip() and "All checks passed" not in l])
             return ToolResult(
                 task_id=task_id,
                 sample_id=sample_id,

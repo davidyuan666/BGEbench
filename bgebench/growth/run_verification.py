@@ -40,7 +40,6 @@ def verify_generations(
                     task=task,
                     sample_id=gen.sample_id,
                     tools=tools,
-                    tmp_dir=log_dir,
                 )
                 all_tool_results.extend(tool_results)
 

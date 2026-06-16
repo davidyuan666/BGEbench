@@ -51,7 +51,6 @@ def run_feedback_loop(
                     task=task,
                     sample_id=gen.sample_id,
                     tools=tools,
-                    tmp_dir=log_dir,
                 )
                 defects = classify_defects(tool_results)
                 sw_defects = compute_severity_weighted(defects)

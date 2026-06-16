@@ -291,9 +291,13 @@ def _classify_mypy(tr: ToolResult) -> list[Defect]:
 
 def _classify_bandit(tr: ToolResult) -> list[Defect]:
     defects: list[Defect] = []
+    if tr.warnings == 0:
+        return defects
     for line in tr.summary.splitlines():
         stripped = line.strip()
         if not stripped:
+            continue
+        if stripped.startswith("Issues: 0") or stripped == "Issues: 0":
             continue
         defects.append(
             Defect(
