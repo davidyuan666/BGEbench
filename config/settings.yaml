@@ -17,6 +17,7 @@ benchmarks:
 generation:
   samples_per_task: 10
   prompt_variants: ["direct", "concise", "test_aware"]
+  max_tasks: 10
 
 verification:
   tools: ["pytest", "ruff", "mypy", "bandit", "hypothesis"]
